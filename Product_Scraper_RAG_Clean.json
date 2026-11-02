@@ -1,0 +1,608 @@
+{
+  "name": "Product Scraper & RAG Automation",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "minutes",
+              "minutesInterval": 1
+            }
+          ]
+        }
+      },
+      "id": "a02cb96c-c57a-461d-abc8-bf7051c91aaf",
+      "name": "Schedule Trigger",
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.3,
+      "position": [
+        -1424,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "f9537362-aa1a-4c4e-94a7-8a6b1eef5b93",
+              "name": "website url",
+              "value": "https://www.dadducharger.com/sitemap_products_1.xml?from=8518376259738&to=9099914477722",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "900691c0-9b2f-4278-a705-8ff185a8aa62",
+      "name": "Edit Fields",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        -1232,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json['website url'] }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "User-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/xml,text/xml,*/*"
+            },
+            {
+              "name": "Accept-Language",
+              "value": "en-US,en;q=0.9"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "aa3c0756-f576-4a37-a6d0-f15eece3e7bc",
+      "name": "HTTP Request",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -1024,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "subpages-urls",
+              "cssSelector": "loc",
+              "returnArray": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "5eecb750-5a3e-4e94-8135-560ed6b3041f",
+      "name": "HTML",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        -832,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "// Step 1: Pichney node se URLs ki list uthayen\nconst urls = items[0].json[\"subpages-urls\"] || [];\n\n// Step 2: Sirf wo links rakhein jo products wali hain\n// Agar apko yaqeen hai k sary links theek hain to .filter hata sakty hain\nconst productUrls = urls.filter(url => url.includes('/products/'));\n\n// Step 3: Har URL ko aik alag item bana kar agay bhejein\nreturn productUrls.map(url => {\n  return {\n    json: {\n      url: url\n    }\n  };\n});"
+      },
+      "id": "312a2fa9-8cbd-495c-b5b1-627956250675",
+      "name": "Code in JavaScript",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -624,
+        480
+      ]
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.url }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Usre-Agent",
+              "value": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/139.0.0.0 Safari/537.36"
+            },
+            {
+              "name": "Accept",
+              "value": "application/xml,text/xml,*/*"
+            }
+          ]
+        },
+        "options": {
+          "batching": {
+            "batch": {
+              "batchSize": 5,
+              "batchInterval": 2000
+            }
+          },
+          "response": {
+            "response": {
+              "responseFormat": "text"
+            }
+          }
+        }
+      },
+      "id": "1c35fbd9-c0dc-46ae-b9da-3246520d89aa",
+      "name": "HTTP Request1",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -80,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "extractHtmlContent",
+        "extractionValues": {
+          "values": [
+            {
+              "key": "title",
+              "cssSelector": "h1"
+            },
+            {
+              "key": "price",
+              "cssSelector": "#shopify-section-template--18177015349402__main > div > div.container-fluid > div > div.m-main-product--info.m\\:column.m\\:w-full.md\\:m\\:w-1\\/2.m-scroll-trigger.animate--fade-in-up > div > div.main-product__block.main-product__block-price > div.product-block-group--price > div > div.m-price__regular > span:nth-child(2)"
+            },
+            {
+              "key": "description",
+              "cssSelector": "#m-section-template--18177015349402__product-details-tabs > div > div > div.m-tabs__content.m-product-collapsible > div > div > div"
+            },
+            {
+              "key": "product-url",
+              "cssSelector": "link[rel=\"canonical\"]",
+              "returnValue": "attribute",
+              "attribute": "href"
+            },
+            {
+              "key": "image-url",
+              "cssSelector": "img",
+              "returnValue": "attribute",
+              "attribute": "src"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "27200657-d311-438b-856e-ceb4abff09f6",
+      "name": "HTML1",
+      "type": "n8n-nodes-base.html",
+      "typeVersion": 1.2,
+      "position": [
+        144,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "47ce7302-5db1-454e-a544-1d5e11e58519",
+              "name": "Pagecontent",
+              "value": "=Product:  {{ $json.title }} /n price: {{ $json.price }} /n Description: {{ $json.description }}",
+              "type": "string"
+            },
+            {
+              "id": "0d6eee70-e5d1-41d9-ae14-c89688cdcda9",
+              "name": "Price",
+              "value": "={{ $json.price }}",
+              "type": "string"
+            },
+            {
+              "id": "cafe650d-9b49-4589-a076-c8a382420864",
+              "name": "Product_url",
+              "value": "={{ $json['product-url'] }}",
+              "type": "string"
+            },
+            {
+              "id": "417b2d21-b9cd-43d8-b7ab-704ae09dfbd3",
+              "name": "Image_url",
+              "value": "={{ $json['image-url'] }}",
+              "type": "string"
+            },
+            {
+              "id": "fc75fc74-992a-4c88-9cff-b2880b7cc904",
+              "name": "title",
+              "value": "={{ $json.title }}",
+              "type": "string"
+            },
+            {
+              "id": "e182f0e9-e4c4-4fdf-b518-504215f43914",
+              "name": "description",
+              "value": "={{ $json.description }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "224a9c22-43f6-4105-b5c1-60b78e904a4e",
+      "name": "Edit Fields1",
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.5,
+      "position": [
+        336,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "getAll",
+        "tableId": "product_vector",
+        "filterType": "string",
+        "filterString": "=metadata->>product_url=eq.{{ $('Edit Fields1').item.json.Product_url }}"
+      },
+      "id": "661a3689-7657-43d8-9ae8-bef9cc7f6fe0",
+      "name": "Get many rows",
+      "type": "n8n-nodes-base.supabase",
+      "typeVersion": 1,
+      "position": [
+        544,
+        496
+      ],
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 3
+          },
+          "conditions": [
+            {
+              "id": "3917b499-4d6e-45ba-ae90-38339470ff44",
+              "leftValue": "={{ $json.id}}",
+              "rightValue": "",
+              "operator": {
+                "type": "boolean",
+                "operation": "false",
+                "singleValue": true
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "looseTypeValidation": true,
+        "options": {}
+      },
+      "id": "0d872146-502e-47ad-9f94-6658c2499156",
+      "name": "If",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.3,
+      "position": [
+        720,
+        496
+      ]
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "product_vector",
+          "mode": "list",
+          "cachedResultName": "product_vector"
+        },
+        "options": {}
+      },
+      "id": "341f53a7-c7a6-494f-b583-e7ab36de88b1",
+      "name": "Supabase Vector Store",
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.3,
+      "position": [
+        -112,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "modelName": "models/gemini-embedding-2"
+      },
+      "id": "8bc0ef6e-22d7-41b8-b58f-c45d07fc59c6",
+      "name": "Embeddings Google Gemini",
+      "type": "@n8n/n8n-nodes-langchain.embeddingsGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -80,
+        256
+      ]
+    },
+    {
+      "parameters": {
+        "jsonMode": "expressionData",
+        "jsonData": "={{ $('Edit Fields1').all()[$itemIndex].json.Pagecontent }}",
+        "textSplittingMode": "custom",
+        "options": {
+          "metadata": {
+            "metadataValues": [
+              {
+                "name": "price",
+                "value": "={{ $('Edit Fields1').all()[$itemIndex].json.Price }}"
+              },
+              {
+                "name": "product_url",
+                "value": "={{ $('Edit Fields1').all()[$itemIndex].json.Product_url }}"
+              },
+              {
+                "name": "image_url",
+                "value": "={{ $('Edit Fields1').all()[$itemIndex].json.Image_url }}"
+              },
+              {
+                "name": "title",
+                "value": "={{ $('Edit Fields1').all()[$itemIndex].json.title }}"
+              },
+              {
+                "name": "description",
+                "value": "={{ $('Edit Fields1').all()[$itemIndex].json.description }}"
+              }
+            ]
+          }
+        }
+      },
+      "id": "bbb60a7f-5f57-473f-9a7d-b21d9173547b",
+      "name": "Default Data Loader",
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1.1,
+      "position": [
+        192,
+        224
+      ]
+    },
+    {
+      "parameters": {
+        "chunkSize": 30000
+      },
+      "id": "7e8ca4e7-cbbe-41b4-86c4-c07e8ee35083",
+      "name": "Character Text Splitter",
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        112,
+        336
+      ]
+    },
+    {
+      "parameters": {
+        "amount": 10
+      },
+      "id": "2450f224-4bd4-45bd-91f9-224f89dc8b70",
+      "name": "Wait",
+      "type": "n8n-nodes-base.wait",
+      "typeVersion": 1.1,
+      "position": [
+        256,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "batchSize": 5,
+        "options": {}
+      },
+      "id": "fac50ada-f8bb-421e-8266-8cf833cf7904",
+      "name": "Loop Over Items",
+      "type": "n8n-nodes-base.splitInBatches",
+      "typeVersion": 3,
+      "position": [
+        -384,
+        480
+      ]
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Schedule Trigger": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "HTML",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML": {
+      "main": [
+        [
+          {
+            "node": "Code in JavaScript",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code in JavaScript": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request1": {
+      "main": [
+        [
+          {
+            "node": "HTML1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTML1": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields1": {
+      "main": [
+        [
+          {
+            "node": "Get many rows",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get many rows": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Supabase Vector Store": {
+      "main": [
+        [
+          {
+            "node": "Wait",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings Google Gemini": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Wait": {
+      "main": [
+        [
+          {
+            "node": "Loop Over Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Loop Over Items": {
+      "main": [
+        [],
+        [
+          {
+            "node": "HTTP Request1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate",
+    "availableInMCP": true
+  },
+  "nodeGroups": [],
+  "tags": []
+}
